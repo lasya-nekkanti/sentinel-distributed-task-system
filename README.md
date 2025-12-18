@@ -19,33 +19,34 @@ This project demonstrates **distributed systems fundamentals**, **backend engine
 ---
 
 ##  System Architecture
-      ┌────────────┐
-      │   Client   │
-      └─────┬──────┘
-            │  HTTP
-            ▼
-    ┌─────────────────┐
-    │  FastAPI (API)  │
-    │  - Submit Task  │
-    │  - Get Stats    │
-    └─────┬───────────┘
+
+        ┌────────────┐
+        │   Client   │
+        └─────┬──────┘
+              │ HTTP
+              ▼
+    ┌─────────────────────┐
+    │   FastAPI (API)     │
+    │  - Submit Task      │
+    │  - Get Stats        │
+    └─────┬───────────────┘
+          │
           │ Redis (Queue + State)
           ▼
-    ┌─────────────────┐
-    │     Redis       │
-    │ Sorted Set Queue│
-    │ Task Status     │
-    └─────┬───────────┘
+    ┌─────────────────────┐
+    │        Redis        │
+    │  Sorted Set Queue   │
+    │  Task Status Store  │
+    │  Metrics Counters   │
+    └─────┬───────────────┘
           │
-┌─────────┴──────────┐
-▼                    ▼
-┌─────────┐ ┌─────────┐
-│ Worker  │ │ Worker  │
-│ Executes│ │ Executes│
-│ Tasks   │ │ Tasks   │
-└─────────┘ └─────────┘
-
----
+   ┌──────┴────────┬────────┐
+   ▼               ▼        ▼
+┌─────────┐   ┌─────────┐  ┌─────────┐
+│ Worker  │   │ Worker  │  │ Worker  │
+│ Execute │   │ Execute │  │ Execute │
+│ Tasks   │   │ Tasks   │  │ Tasks   │
+└─────────┘   └─────────┘  └─────────┘
 
 
 ---
