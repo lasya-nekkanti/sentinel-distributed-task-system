@@ -92,12 +92,15 @@ Request:
 "payload": { "job": "example-task" },
 "priority": 5
 }
+```
 
 Response:
+```json
 {
   "task_id": "uuid",
   "status": "QUEUED"
 }
+```
 
 ---
 
@@ -105,7 +108,7 @@ Response:
 
 ### GET /stats
 Response:
-
+```json
 {
   "queue_size": 0,
   "status_counts": {
@@ -115,7 +118,7 @@ Response:
     "FAILED": 0
   }
 }
-
+```
 ---
 
 ## Running the Project Locally
