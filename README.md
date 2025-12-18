@@ -126,13 +126,15 @@ Prerequisites
 - Docker
 - Docker Compose (or Colima + Docker CLI on macOS)
 
-Start the System
+Start the System:
 ```bash
 docker compose up --build
+```
 
-Open API Documentation
+Open API Documentation: 
 ```bash
 http://localhost:8000/docs
+```
 
 ---
 
@@ -140,6 +142,7 @@ http://localhost:8000/docs
 Sentinel supports horizontal scaling of workers.
 ```bash
 docker compose up --scale worker=3
+```
 
 ---
 
@@ -168,6 +171,7 @@ sentinel/
 ├── docker-compose.yml
 ├── requirements.txt
 └── README.md
+```
 
 ---
 
