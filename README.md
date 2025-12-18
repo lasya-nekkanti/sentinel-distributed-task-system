@@ -3,7 +3,7 @@
 Sentinel is a **distributed, asynchronous task execution system** inspired by platforms like **Celery** and **Google Cloud Tasks**.  
 It allows clients to submit computational tasks via a REST API, enqueue them with priorities, and execute them asynchronously using scalable worker nodes.
 
-This project demonstrates **distributed systems fundamentals**, **backend engineering**, and **production-style system design**, making it ideal for **Microsoft & Google internship applications**.
+This project demonstrates **distributed systems fundamentals**, **backend engineering**, and **production-style system design**.
 
 ---
 
