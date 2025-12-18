@@ -18,7 +18,7 @@ This project demonstrates **distributed systems fundamentals**, **backend engine
 
 ---
 
-## System Architecture
+##  System Architecture
 ```sql
 +----------+
 |  Client  |
