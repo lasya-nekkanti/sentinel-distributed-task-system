@@ -44,14 +44,14 @@ This project demonstrates **distributed systems fundamentals**, **backend engine
      v
 +----------------------+
 |   Worker Pool        |
-|  +----------------+ |
-|  |    Worker 1    | |
-|  +----------------+ |
-|  |    Worker 2    | |
-|  +----------------+ |
-|  |    Worker N    | |
-|  +----------------+ |
-|    Execute Tasks    |
+|  +----------------+  |
+|  |    Worker 1    |  |
+|  +----------------+  |
+|  |    Worker 2    |  |
+|  +----------------+  |
+|  |    Worker N    |  |
+|  +----------------+  |
+|    Execute Tasks     |
 +----------------------+
 
 ```
