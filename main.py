@@ -9,10 +9,18 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from common.models import Task
-from common.redis_queue import enqueue_task, get_stats
+from common.redis_queue import REDIS_DB, REDIS_HOST, REDIS_PORT, QUEUE_KEY, enqueue_task, get_stats
 
 
 app = FastAPI(title="Sentinel Task API")
+
+
+@app.on_event("startup")
+async def log_redis_config() -> None:
+    print(
+        f"[api] Redis connection host={REDIS_HOST} port={REDIS_PORT} db={REDIS_DB}",
+        flush=True,
+    )
 
 
 class SubmitTaskRequest(BaseModel):
@@ -53,6 +61,7 @@ async def submit_task(request: SubmitTaskRequest) -> SubmitTaskResponse:
     4. We return a simple JSON response containing the new task ID and status.
     """
     # Step 1: Extract data from the validated request model.
+    print(f"[api] Submitting task using Redis key={QUEUE_KEY}", flush=True)
     payload = request.payload
     priority = request.priority if request.priority is not None else 0
 
@@ -62,14 +71,20 @@ async def submit_task(request: SubmitTaskRequest) -> SubmitTaskResponse:
         payload=payload,
         priority=priority,
         retries=0,
-        status="pending",
+        status="QUEUED",
         created_at=time.time(),
     )
 
     # Step 3: Enqueue the task into Redis.
     # `enqueue_task` is synchronous, so we offload it to a thread to avoid
     # blocking the asyncio event loop.
-    await asyncio.to_thread(enqueue_task, task)
+    print(f"[api] Calling enqueue_task for task_id={task.id}", flush=True)
+    try:
+        await asyncio.to_thread(enqueue_task, task)
+    except Exception as exc:
+        print(f"[api] enqueue_task failed for task_id={task.id}: {exc}", flush=True)
+        raise
+    print(f"[api] enqueue_task completed for task_id={task.id}", flush=True)
 
     # Step 4: Return task information to the client.
     return SubmitTaskResponse(task_id=task.id, status=task.status)
@@ -88,11 +103,13 @@ async def get_system_stats() -> StatsResponse:
     """
     raw_stats = await asyncio.to_thread(get_stats)
 
+    status_counts = raw_stats["status_counts"]
+
     return StatsResponse(
-        total_tasks_submitted=raw_stats["total_submitted"],
-        completed_tasks=raw_stats["completed"],
-        failed_tasks=raw_stats["failed"],
-        tasks_in_queue=raw_stats["in_queue"],
+        total_tasks_submitted=sum(status_counts.values()),
+        completed_tasks=status_counts["COMPLETED"],
+        failed_tasks=status_counts["FAILED"],
+        tasks_in_queue=raw_stats["queue_size"],
     )
 
 

@@ -12,7 +12,7 @@ class Task:
     payload: Dict[str, Any]  # Arbitrary data required to execute the task
     priority: int  # Higher value can represent higher priority
     retries: int  # How many times this task has been retried
-    status: str  # Current status, e.g. "pending", "running", "completed", "failed"
+    status: str  # Current status: QUEUED, IN_PROGRESS, COMPLETED, or FAILED
     created_at: float  # Creation time as a UNIX timestamp (seconds since epoch)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -27,7 +27,7 @@ class Task:
             payload=data.get("payload", {}),
             priority=data.get("priority", 0),
             retries=data.get("retries", 0),
-            status=data.get("status", "pending"),
+            status=data.get("status", "QUEUED"),
             created_at=data["created_at"],
         )
 

@@ -6,9 +6,14 @@ from typing import Optional
 
 from common.models import Task
 from common.redis_queue import (
+    REDIS_DB,
+    REDIS_HOST,
+    REDIS_PORT,
+    QUEUE_KEY,
     dequeue_task,
     enqueue_task,
     get_queue_size,
+    mark_task_in_progress,
     mark_task_completed,
     mark_task_failed,
 )
@@ -17,7 +22,12 @@ from common.redis_queue import (
 FAILURE_PROBABILITY = 0.2  # 20% of tasks will "fail" to simulate real-world errors
 SLEEP_SECONDS = 1.0  # Simulated execution time per task
 IDLE_SLEEP_SECONDS = 0.5  # Sleep when there is no work to avoid busy-waiting
-MAX_RETRIES = 3  # Maximum number of attempts per task (initial try + 2 more)
+MAX_RETRIES = 3  # Maximum retries after the initial attempt
+
+
+def _log(message: str) -> None:
+    """Print worker logs with flushing so container logs appear immediately."""
+    print(message, flush=True)
 
 
 def execute_task(task: Task) -> bool:
@@ -25,17 +35,17 @@ def execute_task(task: Task) -> bool:
 
     Returns True if the task "succeeds", False if it "fails".
     """
-    print(f"[worker] Starting task {task.id} with priority={task.priority}")
+    _log(f"[worker] Starting task {task.id} with priority={task.priority}")
 
     # Simulate actual work taking some time.
     time.sleep(SLEEP_SECONDS)
 
     # Randomly decide whether the task succeeds or fails.
     if random.random() < FAILURE_PROBABILITY:
-        print(f"[worker] Task {task.id} failed during execution.")
+        _log(f"[worker] Task {task.id} failed during execution.")
         return False
 
-    print(f"[worker] Task {task.id} completed successfully.")
+    _log(f"[worker] Task {task.id} completed successfully.")
     return True
 
 
@@ -53,9 +63,13 @@ def worker_loop() -> None:
     This simple loop can later be extended with graceful shutdown,
     metrics, and real persistence of task status.
     """
-    print("[worker] Starting worker loop. Press Ctrl+C to stop.")
+    _log("[worker] Worker started")
+    _log(f"[worker] Redis connection host={REDIS_HOST} port={REDIS_PORT} db={REDIS_DB}")
+    _log(f"[worker] Using Redis queue key={QUEUE_KEY}")
+    _log("[worker] Starting worker loop. Press Ctrl+C to stop.")
     try:
         while True:
+            _log("[worker] Polling for tasks...")
             queue_size = get_queue_size()
             if queue_size == 0:
                 # No tasks available; worker idles briefly before polling again.
@@ -68,14 +82,17 @@ def worker_loop() -> None:
                 time.sleep(IDLE_SLEEP_SECONDS)
                 continue
 
+            task.status = "IN_PROGRESS"
+            mark_task_in_progress(task.id)
+
             # Simulate execution of the task.
             success = execute_task(task)
 
             if success:
                 # On success we simply mark the task as completed.
                 task.status = "COMPLETED"
-                mark_task_completed()
-                print(f"[worker] Task {task.id} finished with status={task.status}")
+                mark_task_completed(task.id)
+                _log(f"[worker] Task {task.id} finished with status={task.status}")
             else:
                 # On failure, we increment the retries count and decide whether
                 # to give the task another chance or fail it permanently.
@@ -85,8 +102,8 @@ def worker_loop() -> None:
                     # The task has exceeded the maximum allowed attempts.
                     # We mark it as permanently failed and do NOT requeue it.
                     task.status = "FAILED"
-                    mark_task_failed()
-                    print(
+                    mark_task_failed(task.id)
+                    _log(
                         f"[worker] Task {task.id} reached max retries "
                         f"({MAX_RETRIES}) and is marked as permanently FAILED."
                     )
@@ -97,7 +114,7 @@ def worker_loop() -> None:
                     # This means the delay grows as the task fails repeatedly,
                     # giving external systems time to recover.
                     delay = 2**task.retries
-                    print(
+                    _log(
                         f"[worker] Task {task.id} will be retried "
                         f"(attempt {task.retries}/{MAX_RETRIES}) after {delay}s."
                     )
@@ -106,15 +123,19 @@ def worker_loop() -> None:
                     # Requeue the task so that it can be picked up again
                     # by this or another worker.
                     enqueue_task(task)
-                    task.status = "REQUEUED"
-                    print(f"[worker] Task {task.id} has been requeued for retry.")
+                    _log(f"[worker] Task {task.id} has been requeued for retry with status=QUEUED.")
 
     except KeyboardInterrupt:
         # Allow clean exit when running the worker from the command line.
-        print("[worker] Received shutdown signal. Exiting worker loop.")
+        _log("[worker] Received shutdown signal. Exiting worker loop.")
+
+
+def start_worker() -> None:
+    """Entrypoint used by __main__ to start the continuous worker loop."""
+    worker_loop()
 
 
 if __name__ == "__main__":
-    worker_loop()
+    start_worker()
 
 

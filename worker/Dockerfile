@@ -12,6 +12,7 @@ COPY worker /app
 
 # Make /app discoverable for Python imports
 ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
 
 CMD ["python", "worker.py"]
 

@@ -9,6 +9,7 @@ from common.models import Task
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_DB = int(os.getenv("REDIS_DB", 0))
 
 QUEUE_KEY = "sentinel:task_queue"
 STATUS_KEY = "sentinel:task_status"
@@ -16,8 +17,13 @@ STATUS_KEY = "sentinel:task_status"
 client = redis.Redis(
     host=REDIS_HOST,
     port=REDIS_PORT,
+    db=REDIS_DB,
     decode_responses=True
 )
+
+
+def _log(message: str) -> None:
+    print(message, flush=True)
 
 # ============================
 # Internal Helpers
@@ -41,12 +47,23 @@ def enqueue_task(task: Task) -> None:
     Push task into Redis priority queue.
     """
     score = _priority_score(task.priority, task.created_at)
+    payload = json.dumps(task.to_dict())
 
-    client.zadd(
-        QUEUE_KEY,
-        {json.dumps(task.to_dict()): score}
-    )
+    _log(f"[redis_queue] Enqueue using key={QUEUE_KEY}")
+    _log(f"[redis_queue] Enqueue raw payload={payload}")
 
+    try:
+        zadd_result = client.zadd(
+            QUEUE_KEY,
+            {payload: score}
+        )
+    except Exception as exc:
+        _log(f"[redis_queue] Enqueue failed for key={QUEUE_KEY}: {exc}")
+        raise
+
+    _log(f"[redis_queue] ZADD result={zadd_result} key={QUEUE_KEY} score={score}")
+
+    task.status = "QUEUED"
     client.hset(STATUS_KEY, task.id, task.status)
 
 
@@ -54,7 +71,9 @@ def dequeue_task() -> Task | None:
     """
     Pop highest-priority task from queue.
     """
+    _log(f"[redis_queue] Dequeue using key={QUEUE_KEY}")
     result = client.zpopmin(QUEUE_KEY, count=1)
+    _log(f"[redis_queue] Dequeue raw result={result}")
 
     if not result:
         return None
